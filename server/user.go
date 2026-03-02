@@ -13,23 +13,6 @@ type User struct {
 	server *Server
 }
 
-// 创建一个用户的API
-func NewUser(conn net.Conn, server *Server) *User {
-	userAddr := conn.RemoteAddr().String()
-	user := &User{
-		Name:   userAddr,
-		Addr:   userAddr,
-		C:      make(chan string),
-		conn:   conn,
-		server: server,
-	}
-
-	//直接监听当前user channel的消息的goroutine
-	go user.ListenMessage()
-
-	return user
-}
-
 // 用户上线
 func (u *User) Online() {
 	u.server.mapLock.Lock()
@@ -109,4 +92,21 @@ func (u *User) ListenMessage() {
 		msg := <-u.C
 		u.conn.Write([]byte(msg + "\n"))
 	}
+}
+
+// 创建一个用户的API
+func NewUser(conn net.Conn, server *Server) *User {
+	userAddr := conn.RemoteAddr().String()
+	user := &User{
+		Name:   userAddr,
+		Addr:   userAddr,
+		C:      make(chan string),
+		conn:   conn,
+		server: server,
+	}
+
+	//直接监听当前user channel的消息的goroutine
+	go user.ListenMessage()
+
+	return user
 }

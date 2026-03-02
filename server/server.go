@@ -17,16 +17,7 @@ type Server struct {
 	Message   chan string      //消息广播channel
 }
 
-// 创建一个服务器的API
-func NewServer(ip string, port int) *Server {
-	return &Server{
-		IP:        ip,
-		Port:      port,
-		OnlineMap: make(map[string]*User),
-		Message:   make(chan string),
-	}
-}
-
+// 服务器启动
 func (s *Server) Start() {
 	//socket listen
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
@@ -72,6 +63,7 @@ func (s *Server) BroadCast(user *User, msg string) {
 	s.Message <- sendMsg
 }
 
+// 业务逻辑
 func (s *Server) Handler(conn net.Conn) {
 	user := NewUser(conn, s)
 	//用户上线，将用户加入在线用户列表
@@ -112,8 +104,8 @@ func (s *Server) Handler(conn net.Conn) {
 		case <-isLive:
 		//什么都不做，只需要进入下一轮循环从而自动重置定时器
 
-		//10秒后管道中会有数据，此时就会进入该case，强制当前用户下线
-		case <-time.After(time.Second * 60):
+		//120秒后管道中会有数据，此时就会进入该case，强制当前用户下线
+		case <-time.After(time.Second * 120):
 			user.conn.Write([]byte("you have been removed\n"))
 			close(user.C)
 			conn.Close()
@@ -122,4 +114,14 @@ func (s *Server) Handler(conn net.Conn) {
 
 	}
 
+}
+
+// 创建一个服务器的API
+func NewServer(ip string, port int) *Server {
+	return &Server{
+		IP:        ip,
+		Port:      port,
+		OnlineMap: make(map[string]*User),
+		Message:   make(chan string),
+	}
 }

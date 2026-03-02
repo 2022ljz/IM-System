@@ -38,6 +38,69 @@ func (c *Client) DealResponse() {
 	io.Copy(os.Stdout, c.conn)
 }
 
+// 1.公聊模式
+func (c *Client) PublicChat() {
+	var chatMsg string
+	fmt.Println("please input chat content, exit by inputting 'exit'")
+	fmt.Scanln(&chatMsg)
+	for chatMsg != "exit" {
+		if len(chatMsg) != 0 {
+			sendMsg := chatMsg + "\n"
+			_, err := c.conn.Write([]byte(sendMsg))
+			if err != nil {
+				fmt.Println("conn.Write error:", err)
+				return
+			}
+		}
+		chatMsg = ""
+		fmt.Println("please input chat content, exit by inputting 'exit'")
+		fmt.Scanln(&chatMsg)
+	}
+}
+
+// 2.私聊模式
+// 查询在线用户
+func (c *Client) SelectUsers() {
+	sendMsg := "who\n"
+	_, err := c.conn.Write([]byte(sendMsg))
+	if err != nil {
+		fmt.Println("conn.Write error:", err)
+		return
+	}
+}
+
+// 发送私聊消息
+func (c *Client) PrivateChat() {
+	var remoteName string
+	var chatMsg string
+
+	c.SelectUsers()
+	fmt.Println("please input the username you want to chat with, exit by inputting 'exit'")
+	fmt.Scanln(&remoteName)
+
+	for remoteName != "exit" {
+		fmt.Println("please input chat content, exit by inputting 'exit'")
+		fmt.Scanln(&chatMsg)
+		for chatMsg != "exit" {
+			if len(chatMsg) != 0 {
+				sendMsg := "to|" + remoteName + "|" + chatMsg + "\n"
+				_, err := c.conn.Write([]byte(sendMsg))
+				if err != nil {
+					fmt.Println("conn.Write error:", err)
+					return
+				}
+			}
+			chatMsg = ""
+			fmt.Println("please input chat content, exit by inputting 'exit'")
+			fmt.Scanln(&chatMsg)
+		}
+		c.SelectUsers()
+		fmt.Println("please input the username you want to chat with, exit by inputting 'exit'")
+		fmt.Scanln(&remoteName)
+	}
+}
+
+// 3.更新用户名
 func (c *Client) UpdateName() bool {
 	fmt.Println("please input your username:")
 	fmt.Scanln(&c.Name)
@@ -56,12 +119,16 @@ func (c *Client) Run() {
 		}
 		switch c.flag {
 		case 1:
+			c.PublicChat()
+			break
 		case 2:
+			c.PrivateChat()
+			break
 		case 3:
 			c.UpdateName()
+			break
 		}
 	}
-
 }
 
 // 创建一个客户端的API
