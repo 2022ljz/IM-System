@@ -25,59 +25,6 @@ func NewServer(ip string, port int) *Server {
 	}
 }
 
-// 监听Message广播消息channel的goroutine，一旦有消息就发送给全部在线User
-func (s *Server) ListenMessager() {
-	for {
-		msg := <-s.Message
-		s.mapLock.Lock()
-		//广播给用户列表中所有的用户
-		for _, u := range s.OnlineMap {
-			u.C <- msg
-		}
-		s.mapLock.Unlock()
-	}
-}
-
-// 向Message写入广播消息
-func (s *Server) BroadCast(user *User, msg string) {
-	sendMsg := "[" + user.Addr + "]" + user.Name + ":" + msg
-	s.Message <- sendMsg
-}
-
-func (s *Server) Handler(conn net.Conn) {
-	//用户上线，将用户加入在线用户列表
-	user := NewUser(conn)
-	s.mapLock.Lock()
-	s.OnlineMap[user.Name] = user
-	s.mapLock.Unlock()
-	//广播当前用户上线消息
-	s.BroadCast(user, "is online")
-
-	//接受客户端发送的消息
-	go func() {
-		buf := make([]byte, 4096)
-		for {
-			n, err := conn.Read(buf)
-			if n == 0 {
-				s.BroadCast(user, "is offline")
-				return
-			}
-
-			if err != nil && err != io.EOF {
-				fmt.Println("conn.Read error:", err)
-				return
-			}
-
-			msg := string(buf[:n-1]) //去掉\n
-			s.BroadCast(user, msg)
-		}
-	}()
-
-	//阻塞handler，防退出
-	select {}
-
-}
-
 func (s *Server) Start() {
 	//socket listen
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
@@ -102,4 +49,55 @@ func (s *Server) Start() {
 		// do handler
 		go s.Handler(conn)
 	}
+}
+
+// 监听Message广播消息channel的goroutine，一旦有消息就发送给全部在线User
+func (s *Server) ListenMessager() {
+	for {
+		msg := <-s.Message
+		s.mapLock.Lock()
+		//广播给用户列表中所有的用户
+		for _, u := range s.OnlineMap {
+			u.C <- msg
+		}
+		s.mapLock.Unlock()
+	}
+}
+
+// 向Message写入广播消息
+func (s *Server) BroadCast(user *User, msg string) {
+	sendMsg := "[" + user.Addr + "]" + user.Name + ":" + msg
+	s.Message <- sendMsg
+}
+
+func (s *Server) Handler(conn net.Conn) {
+	user := NewUser(conn, s)
+	//用户上线，将用户加入在线用户列表
+	user.Online()
+
+	//接受用户消息
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := conn.Read(buf)
+			//用户下线，将用户从在线用户列表删除
+			if n == 0 {
+				user.Offline()
+				return
+			}
+
+			//捕捉异常
+			if err != nil && err != io.EOF {
+				fmt.Println("conn.Read error:", err)
+				return
+			}
+
+			//处理用户消息
+			msg := string(buf[:n-1]) //去掉\n
+			user.DoMsg(msg)
+		}
+	}()
+
+	//阻塞handler，防退出
+	select {}
 }
