@@ -74,6 +74,29 @@ func (u *User) DoMsg(msg string) {
 			u.Name = newName
 			u.conn.Write([]byte("username changed to " + newName + "\n"))
 		}
+
+		//私聊功能 to|张三|消息内容
+	} else if len(msg) > 4 && msg[:3] == "to|" {
+		remoteName := strings.Split(msg, "|")[1]
+		if remoteName == "" {
+			u.conn.Write([]byte("the username cannot be empty\n"))
+			return
+		}
+
+		remoteUser, ok := u.server.OnlineMap[remoteName]
+		if !ok {
+			u.conn.Write([]byte("the username does not exist\n"))
+			return
+		}
+
+		content := strings.Split(msg, "|")[2]
+		if content == "" {
+			u.conn.Write([]byte("the message cannot be empty\n"))
+			return
+		}
+
+		remoteUser.conn.Write([]byte(u.Name + " says to you: " + content + "\n"))
+
 	} else {
 		u.server.BroadCast(u, "say:"+msg)
 	}

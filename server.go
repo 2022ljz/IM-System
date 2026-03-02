@@ -113,7 +113,7 @@ func (s *Server) Handler(conn net.Conn) {
 		//什么都不做，只需要进入下一轮循环从而自动重置定时器
 
 		//10秒后管道中会有数据，此时就会进入该case，强制当前用户下线
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second * 60):
 			user.conn.Write([]byte("you have been removed\n"))
 			close(user.C)
 			conn.Close()
