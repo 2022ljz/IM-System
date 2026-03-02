@@ -56,6 +56,7 @@
 进入 server 目录：
 
 ```go build run.exe main.go server.go user.go ```
+
 ```.\run.exe ```
 
 ### 2）启动客户端（建议多个）
