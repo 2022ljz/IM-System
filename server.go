@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -93,7 +94,7 @@ func (s *Server) Handler(conn net.Conn) {
 			}
 
 			//处理用户消息
-			msg := string(buf[:n-1]) //去掉\n
+			msg := strings.TrimSpace(string(buf[:n])) //把客户端发来的原始字节 → 转成字符串 → 去掉首尾空白 → 得到干净的一条消息
 			user.DoMsg(msg)
 		}
 	}()
