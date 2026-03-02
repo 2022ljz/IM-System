@@ -1,6 +1,9 @@
 package main
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 type User struct {
 	Name   string
@@ -27,7 +30,7 @@ func NewUser(conn net.Conn, server *Server) *User {
 	return user
 }
 
-//用户上线
+// 用户上线
 func (u *User) Online() {
 	u.server.mapLock.Lock()
 	u.server.OnlineMap[u.Name] = u
@@ -36,7 +39,7 @@ func (u *User) Online() {
 	u.server.BroadCast(u, "is online")
 }
 
-//用户下线
+// 用户下线
 func (u *User) Offline() {
 	u.server.mapLock.Lock()
 	delete(u.server.OnlineMap, u.Name)
@@ -45,7 +48,7 @@ func (u *User) Offline() {
 	u.server.BroadCast(u, "is offline")
 }
 
-//用户消息发送
+// 用户消息发送
 func (u *User) DoMsg(msg string) {
 	//查询在线用户
 	if msg == "who" {
@@ -56,13 +59,28 @@ func (u *User) DoMsg(msg string) {
 		}
 		u.server.mapLock.Unlock()
 
+		//修改用户名，格式：rename|张三
+	} else if len(msg) > 7 && msg[0:7] == "rename|" {
+		newName := strings.Split(msg, "|")[1]
+		_, ok := u.server.OnlineMap[newName]
+		if ok {
+			u.conn.Write([]byte("the username is already exist\n"))
+		} else {
+			u.server.mapLock.Lock()
+			delete(u.server.OnlineMap, u.Name) //删除原来的用户名
+			u.server.OnlineMap[newName] = u
+			u.server.mapLock.Unlock()
+
+			u.Name = newName
+			u.conn.Write([]byte("username changed to " + newName + "\n"))
+		}
 	} else {
 		u.server.BroadCast(u, "say:"+msg)
 	}
 
 }
 
-//监听当前User Channel的方法，一旦有消息就直接发送给对端客户端
+// 监听当前User Channel的方法，一旦有消息就直接发送给对端客户端
 func (u *User) ListenMessage() {
 	for {
 		msg := <-u.C
