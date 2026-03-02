@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -76,6 +77,9 @@ func (s *Server) Handler(conn net.Conn) {
 	//用户上线，将用户加入在线用户列表
 	user.Online()
 
+	//监听用户是否活跃的channel
+	isLive := make(chan bool)
+
 	//接受用户消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -96,9 +100,26 @@ func (s *Server) Handler(conn net.Conn) {
 			//处理用户消息
 			msg := strings.TrimSpace(string(buf[:n])) //把客户端发来的原始字节 → 转成字符串 → 去掉首尾空白 → 得到干净的一条消息
 			user.DoMsg(msg)
+			//用户任意消息代表当前用户活跃
+			isLive <- true
 		}
 	}()
 
-	//阻塞handler，防退出
-	select {}
+	//超时强踢功能
+	for {
+		select {
+		//如果当前用户活跃，则重置定时器
+		case <-isLive:
+		//什么都不做，只需要进入下一轮循环从而自动重置定时器
+
+		//10秒后管道中会有数据，此时就会进入该case，强制当前用户下线
+		case <-time.After(time.Second * 10):
+			user.conn.Write([]byte("you have been removed\n"))
+			close(user.C)
+			conn.Close()
+			return
+		}
+
+	}
+
 }
